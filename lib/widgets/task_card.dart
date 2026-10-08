@@ -16,7 +16,7 @@ class TaskCard extends StatelessWidget {
     required this.sla,
   });
 
-  // Returns a different color depending on the SLA status
+  // Choose a color based on the SLA status.
   Color getSlaColor() {
     switch (sla) {
       case 'On Track':
@@ -32,48 +32,149 @@ class TaskCard extends StatelessWidget {
     }
   }
 
+  // Choose a color based on task priority.
+  Color getPriorityColor() {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return Colors.red;
+      case 'medium':
+        return Colors.orange;
+      case 'low':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final slaColor = getSlaColor();
+    final priorityColor = getPriorityColor();
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      color: Colors.white,
+      elevation: 1,
+      shadowColor: Colors.black12,
+      margin: const EdgeInsets.only(bottom: 14),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+            // Task title and priority indicator
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: priorityColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // Assigned team member
+            Row(
+              children: [
+                const Icon(
+                  Icons.person_outline,
+                  size: 18,
+                  color: Colors.blueGrey,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    assignee,
+                    style: const TextStyle(
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 8),
 
-            Text('Assigned to: $assignee'),
-            Text('Priority: $priority'),
-            Text('Due: $deadline'),
-
-            const SizedBox(height: 10),
-
-            // SLA status badge
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
-              decoration: BoxDecoration(
-                color: getSlaColor().withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                sla,
-                style: TextStyle(
-                  color: getSlaColor(),
-                  fontWeight: FontWeight.bold,
+            // Deadline
+            Row(
+              children: [
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 17,
+                  color: Colors.blueGrey,
                 ),
-              ),
+                const SizedBox(width: 6),
+                Text(
+                  deadline,
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // Priority and SLA badges
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: priorityColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    '$priority Priority',
+                    style: TextStyle(
+                      color: priorityColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: slaColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    sla,
+                    style: TextStyle(
+                      color: slaColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
