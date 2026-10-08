@@ -1,30 +1,54 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter_sla_task_tracker/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('sign-in requires a name', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    await tester.tap(find.text('Continue to dashboard'));
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    expect(find.text('Please enter your name.'), findsOneWidget);
+    expect(find.text('Hi, Esther'), findsNothing);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('sign-in opens the dashboard for the entered user',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+
+    await tester.enterText(find.byType(TextFormField), 'Esther');
+    await tester.tap(find.text('Continue to dashboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hi, Esther'), findsOneWidget);
+    expect(find.text('SLA overview'), findsOneWidget);
+    expect(find.text('25%'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Needs attention'),
+      300,
+    );
+    expect(find.text('Needs attention'), findsOneWidget);
+    expect(find.text('Design Login Screen'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Fix Navigation Bug'),
+      200,
+    );
+    expect(find.text('Fix Navigation Bug'), findsOneWidget);
+  });
+
+  testWidgets('dashboard task destination opens the task list',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MyApp());
+    await tester.enterText(find.byType(TextFormField), 'Esther');
+    await tester.tap(find.text('Continue to dashboard'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Tasks'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Set Up Database'), findsOneWidget);
   });
 }
