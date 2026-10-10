@@ -1,5 +1,8 @@
 
 import 'package:flutter/material.dart';
+
+import '../database/database_helper.dart';
+import '../models/task_model.dart';
 import '../widgets/task_card.dart';
 import 'task_details_screen.dart';
 
@@ -14,45 +17,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   String searchQuery = '';
   String selectedFilter = 'All';
 
-  // Temporary data until SQLite is integrated.
-  static const List<Map<String, String>> tasks = [
-    {
-      'title': 'Design Login Screen',
-      'assignee': 'Esther',
-      'priority': 'High',
-      'deadline': 'Oct 8',
-      'sla': 'At Risk',
-      'description': 'Design a clean and responsive login screen.',
-      'status': 'In Progress',
-    },
-    {
-      'title': 'Set Up Database',
-      'assignee': 'David',
-      'priority': 'Medium',
-      'deadline': 'Oct 10',
-      'sla': 'On Track',
-      'description': 'Set up SQLite for storing tasks and team members.',
-      'status': 'In Progress',
-    },
-    {
-      'title': 'Fix Navigation Bug',
-      'assignee': 'Sarah',
-      'priority': 'High',
-      'deadline': 'Oct 5',
-      'sla': 'Overdue',
-      'description': 'Fix navigation issues between application screens.',
-      'status': 'To Do',
-    },
-    {
-      'title': 'Create Dashboard',
-      'assignee': 'John',
-      'priority': 'Low',
-      'deadline': 'Oct 7',
-      'sla': 'Completed',
-      'description': 'Build the project dashboard and progress cards.',
-      'status': 'Completed',
-    },
-  ];
+  late Future<List<Map<String, Object?>>> tasksFuture;
 
   final List<String> filters = [
     'All',
@@ -63,22 +28,39 @@ class _TaskListScreenState extends State<TaskListScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadTasks();
+  }
+
+  void _loadTasks() {
+    tasksFuture = DatabaseHelper.instance.fetchAllTasks();
+  }
+
+  void _refreshTasks() {
+    setState(() {
+      _loadTasks();
+    });
+  }
+
+  Future<void> _pullToRefresh() async {
+    final future = DatabaseHelper.instance.fetchAllTasks();
+
+    setState(() {
+      tasksFuture = future;
+    });
+
+    await future;
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Only show tasks matching both search and selected SLA filter.
-    final filteredTasks = tasks.where((task) {
-      final title = task['title']!.toLowerCase();
-      final assignee = task['assignee']!.toLowerCase();
-
-      final matchesSearch =
-          title.contains(searchQuery.toLowerCase()) ||
-          assignee.contains(searchQuery.toLowerCase());
-
-      final matchesFilter =
-          selectedFilter == 'All' || task['sla'] == selectedFilter;
-
-      return matchesSearch && matchesFilter;
-    }).toList();
-
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FB),
       appBar: AppBar(
@@ -90,6 +72,13 @@ class _TaskListScreenState extends State<TaskListScreen> {
           ),
         ),
         backgroundColor: const Color(0xFFF5F7FB),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh tasks',
+            onPressed: _refreshTasks,
+          ),
+        ],
       ),
 
       body: Column(
@@ -120,7 +109,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // SLA filter chips
+          // SLA filters
           SizedBox(
             height: 55,
             child: ListView(
@@ -154,80 +143,181 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // Number of matching tasks
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${filteredTasks.length} tasks found',
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ),
-
-          // Task list or empty state
+          // Load real tasks from SQLite
           Expanded(
-            child: filteredTasks.isEmpty
-                ? const Center(
+            child: FutureBuilder<List<Map<String, Object?>>>(
+              future: tasksFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.search_off,
-                          size: 50,
-                          color: Colors.blueGrey,
+                        const Icon(
+                          Icons.error_outline,
+                          size: 48,
+                          color: Colors.redAccent,
                         ),
-                        SizedBox(height: 12),
-                        Text(
-                          'No tasks found',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Try a different search or filter.',
-                          style: TextStyle(color: Colors.blueGrey),
+                        const SizedBox(height: 12),
+                        const Text('Could not load tasks.'),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: _refreshTasks,
+                          child: const Text('Try Again'),
                         ),
                       ],
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredTasks.length,
-                    itemBuilder: (context, index) {
-                      final task = filteredTasks[index];
+                  );
+                }
 
-                      return TaskCard(
-                        title: task['title']!,
-                        assignee: task['assignee']!,
-                        priority: task['priority']!,
-                        deadline: task['deadline']!,
-                        sla: task['sla']!,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TaskDetailsScreen(
-                                title: task['title']!,
-                                assignee: task['assignee']!,
-                                priority: task['priority']!,
-                                deadline: task['deadline']!,
-                                sla: task['sla']!,
-                                description: task['description']!,
-                                status: task['status']!,
+                final tasks = (snapshot.data ?? [])
+                    .map((map) => TaskRecord.fromMap(map))
+                    .toList();
+
+                final now = DateTime.now();
+
+                // Filter tasks by search and SLA status
+                final filteredTasks = tasks.where((task) {
+                  final title = task.title.toLowerCase();
+                  final assignee =
+                      (task.assignee ?? '').toLowerCase();
+
+                  final query = searchQuery.trim().toLowerCase();
+
+                  final matchesSearch =
+                      title.contains(query) ||
+                      assignee.contains(query);
+
+                  final sla = task.slaStatusAt(now).label;
+
+                  final matchesFilter =
+                      selectedFilter == 'All' ||
+                      sla == selectedFilter;
+
+                  return matchesSearch && matchesFilter;
+                }).toList();
+
+                return Column(
+                  children: [
+                    // Number of matching tasks
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(
+                        16,
+                        8,
+                        16,
+                        12,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${filteredTasks.length} tasks found',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Task list or empty state
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _pullToRefresh,
+                        child: filteredTasks.isEmpty
+                            ? ListView(
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 100),
+                                  Icon(
+                                    Icons.search_off,
+                                    size: 50,
+                                    color: Colors.blueGrey,
+                                  ),
+                                  SizedBox(height: 12),
+                                  Center(
+                                    child: Text(
+                                      'No tasks found',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: 6),
+                                  Center(
+                                    child: Text(
+                                      'Try a different search or filter.',
+                                      style: TextStyle(
+                                        color: Colors.blueGrey,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : ListView.builder(
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                ),
+                                itemCount: filteredTasks.length,
+                                itemBuilder: (context, index) {
+                                  final task = filteredTasks[index];
+
+                                  final sla =
+                                      task.slaStatusAt(now).label;
+
+                                  return TaskCard(
+                                    title: task.title,
+                                    assignee:
+                                        task.assignee ?? 'Unassigned',
+                                    priority: task.priority,
+                                    deadline:
+                                        _formatDate(task.deadline),
+                                    sla: sla,
+                                    onTap: () async {
+                                      await Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              TaskDetailsScreen(
+                                            taskId: task.id,
+                                            title: task.title,
+                                            assignee:
+                                                task.assignee ??
+                                                'Unassigned',
+                                            priority: task.priority,
+                                            deadline: _formatDate(
+                                              task.deadline,
+                                            ),
+                                            sla: sla,
+                                            description: task.description,
+                                            status: task.status,
+                                          ),
+                                        ),
+                                      );
+
+                                      if (mounted) {
+                                        _refreshTasks();
+                                      }
+                                    },
+                                  );
+                                },
                               ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ],
       ),

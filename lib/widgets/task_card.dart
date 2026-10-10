@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class TaskCard extends StatelessWidget {
   final String title;
@@ -19,23 +20,23 @@ class TaskCard extends StatelessWidget {
     this.onTap,
   });
 
-  // Choose a color based on the SLA status.
+  // Color based on SLA status.
   Color getSlaColor() {
     switch (sla) {
       case 'On Track':
-        return Colors.green;
+        return AppColors.onTrack;
       case 'At Risk':
-        return Colors.orange;
+        return AppColors.atRisk;
       case 'Overdue':
-        return Colors.red;
+        return AppColors.overdue;
       case 'Completed':
-        return Colors.indigo;
+        return AppColors.completed;
       default:
-        return Colors.grey;
+        return AppColors.mutedText;
     }
   }
 
-  // Choose a color based on task priority.
+  // Color based on task priority.
   Color getPriorityColor() {
     switch (priority.toLowerCase()) {
       case 'high':
@@ -79,7 +80,7 @@ class TaskCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                        color: AppColors.text,
                       ),
                     ),
                   ),
@@ -103,14 +104,14 @@ class TaskCard extends StatelessWidget {
                   const Icon(
                     Icons.person_outline,
                     size: 18,
-                    color: Colors.blueGrey,
+                    color: AppColors.mutedText,
                   ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       assignee,
                       style: const TextStyle(
-                        color: Color(0xFF64748B),
+                        color: AppColors.mutedText,
                       ),
                     ),
                   ),
@@ -125,13 +126,13 @@ class TaskCard extends StatelessWidget {
                   const Icon(
                     Icons.calendar_today_outlined,
                     size: 17,
-                    color: Colors.blueGrey,
+                    color: AppColors.mutedText,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     deadline,
                     style: const TextStyle(
-                      color: Color(0xFF64748B),
+                      color: AppColors.mutedText,
                     ),
                   ),
                 ],

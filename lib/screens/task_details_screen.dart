@@ -1,7 +1,10 @@
 
 import 'package:flutter/material.dart';
 
+import '../theme/app_theme.dart';
+
 class TaskDetailsScreen extends StatelessWidget {
+  final String? taskId;
   final String title;
   final String assignee;
   final String priority;
@@ -10,8 +13,12 @@ class TaskDetailsScreen extends StatelessWidget {
   final String description;
   final String status;
 
+  // We'll connect this to Gael's form during integration.
+  final Future<bool?> Function(BuildContext context, String taskId)? onEdit;
+
   const TaskDetailsScreen({
     super.key,
+    this.taskId,
     required this.title,
     required this.assignee,
     required this.priority,
@@ -19,32 +26,33 @@ class TaskDetailsScreen extends StatelessWidget {
     required this.sla,
     this.description = 'No description provided.',
     this.status = 'To Do',
+    this.onEdit,
   });
 
   Color getSlaColor() {
     switch (sla) {
       case 'On Track':
-        return Colors.green;
+        return AppColors.onTrack;
       case 'At Risk':
-        return Colors.orange;
+        return AppColors.atRisk;
       case 'Overdue':
-        return Colors.red;
+        return AppColors.overdue;
       case 'Completed':
-        return Colors.indigo;
+        return AppColors.completed;
       default:
-        return Colors.grey;
+        return AppColors.mutedText;
     }
   }
 
   Widget detailRow(IconData icon, String label, String value) {
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF64748B)),
+        Icon(icon, color: AppColors.mutedText),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             label,
-            style: const TextStyle(color: Color(0xFF64748B)),
+            style: const TextStyle(color: AppColors.mutedText),
           ),
         ),
         Flexible(
@@ -63,10 +71,9 @@ class TaskDetailsScreen extends StatelessWidget {
     final slaColor = getSlaColor();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Task Details'),
-        backgroundColor: const Color(0xFFF5F7FB),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -78,7 +85,7 @@ class TaskDetailsScreen extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
+                color: AppColors.text,
               ),
             ),
             const SizedBox(height: 12),
@@ -113,9 +120,11 @@ class TaskDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              description,
+              description.isEmpty
+                  ? 'No description provided.'
+                  : description,
               style: const TextStyle(
-                color: Color(0xFF64748B),
+                color: AppColors.mutedText,
                 fontSize: 15,
               ),
             ),
@@ -124,15 +133,21 @@ class TaskDetailsScreen extends StatelessWidget {
 
             // Task information card
             Card(
-              color: Colors.white,
-              elevation: 0,
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
                   children: [
-                    detailRow(Icons.person_outline, 'Assigned to', assignee),
+                    detailRow(
+                      Icons.person_outline,
+                      'Assigned to',
+                      assignee,
+                    ),
                     const Divider(height: 28),
-                    detailRow(Icons.flag_outlined, 'Priority', priority),
+                    detailRow(
+                      Icons.flag_outlined,
+                      'Priority',
+                      priority,
+                    ),
                     const Divider(height: 28),
                     detailRow(
                       Icons.calendar_today_outlined,
@@ -182,11 +197,22 @@ class TaskDetailsScreen extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: null,
+                onPressed: taskId != null && onEdit != null
+                    ? () async {
+                        final updated = await onEdit!(
+                          context,
+                          taskId!,
+                        );
+
+                        if (updated == true && context.mounted) {
+                          Navigator.pop(context, true);
+                        }
+                      }
+                    : null,
                 icon: const Icon(Icons.edit_outlined),
                 label: const Text('Edit Task'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4338CA),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
