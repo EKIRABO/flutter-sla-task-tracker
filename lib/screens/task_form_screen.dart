@@ -1,28 +1,37 @@
 import 'package:flutter/material.dart';
-import '../models/task.dart';
-import '../services/database_service.dart';
 
+import '../database/database_helper.dart';
+import '../models/task_model.dart';
 
+/// One screen for both modes:
+///   TaskFormScreen()               -> Create Task
+///   TaskFormScreen(task: record)   -> Edit Task (fields are prepopulated)
+///
+/// Pops with `true` after a successful save so the previous screen can reload.
 class TaskFormScreen extends StatefulWidget {
-  final Task? task;
-  final List<String> teamMembers;
+  final TaskRecord? task;
 
-  const TaskFormScreen({super.key, this.task, required this.teamMembers});
+  const TaskFormScreen({super.key, this.task});
 
   @override
   State<TaskFormScreen> createState() => _TaskFormScreenState();
 }
 
 class _TaskFormScreenState extends State<TaskFormScreen> {
+  // Must match the values the database comment and SlaStatus logic expect.
   static const List<String> _priorities = ['Low', 'Medium', 'High'];
-  static const List<String> _statuses = ['To Do', 'In Progress', 'Done'];
+  static const List<String> _statuses = ['To Do', 'In Progress', 'Completed'];
 
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  String? _assignee;
-  DateTime? _dueDate;
+  List<Map<String, dynamic>> _members = [];
+  bool _loadingMembers = true;
+  String? _membersError;
+
+  String? _assigneeId;
+  DateTime? _deadline;
   String _priority = 'Medium';
   String _status = 'To Do';
   bool _isSaving = false;
@@ -34,15 +43,15 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     super.initState();
     final task = widget.task;
     if (task != null) {
+      // Edit mode: prepopulate the form with the existing task values.
       _titleController.text = task.title;
       _descriptionController.text = task.description;
-      _dueDate = task.dueDate;
+      _deadline = task.deadline;
+      _assigneeId = task.assigneeId;
       _priority = _priorities.contains(task.priority) ? task.priority : 'Medium';
       _status = _statuses.contains(task.status) ? task.status : 'To Do';
-     
-      _assignee =
-          widget.teamMembers.contains(task.assignee) ? task.assignee : null;
     }
+    _loadMembers();
   }
 
   @override
@@ -52,29 +61,62 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     super.dispose();
   }
 
-  String _formatDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  Future<void> _loadMembers() async {
+    setState(() {
+      _loadingMembers = true;
+      _membersError = null;
+    });
+    try {
+      final rows = await DatabaseHelper.instance.fetchAllMembers();
+      if (!mounted) return;
+      setState(() {
+        _members = rows;
+        _loadingMembers = false;
+        // Drop a preselected assignee that no longer exists, otherwise the
+        // dropdown would throw an assertion error.
+        if (_assigneeId != null && !rows.any((m) => m['id'] == _assigneeId)) {
+          _assigneeId = null;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingMembers = false;
+        _membersError = 'Could not load team members.';
+      });
+    }
+  }
 
   DateTime get _today {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
   }
 
+  // Shown to the user: dd/mm/yyyy
+  String _formatForDisplay(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  // Stored in the database: YYYY-MM-DD (matches the tasks table comment)
+  String _formatForDb(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   Future<void> _pickDate(FormFieldState<DateTime> field) async {
-    
-    final earliest = (_isEditing && _dueDate != null && _dueDate!.isBefore(_today))
-        ? _dueDate!
-        : _today;
+    // When editing an overdue task its date is in the past, so the picker
+    // must be allowed to start earlier or it throws.
+    final earliest =
+        (_isEditing && _deadline != null && _deadline!.isBefore(_today))
+            ? DateTime(_deadline!.year, _deadline!.month, _deadline!.day)
+            : _today;
 
     final picked = await showDatePicker(
       context: context,
-      initialDate: _dueDate ?? _today,
+      initialDate: _deadline ?? _today,
       firstDate: earliest,
       lastDate: DateTime(_today.year + 5),
     );
 
     if (picked != null) {
-      setState(() => _dueDate = picked);
+      setState(() => _deadline = picked);
       field.didChange(picked);
     }
   }
@@ -98,21 +140,27 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final task = Task(
-        id: widget.task?.id,
-        title: _titleController.text.trim(),
-        description: _descriptionController.text.trim(),
-        assignee: _assignee!,
-        dueDate: _dueDate!,
-        priority: _priority,
-        status: _status,
-        createdAt: widget.task?.createdAt ?? DateTime.now(),
-      );
+      // Keys must match the column names in the tasks table exactly.
+      // "assignee_name" is NOT a column (it comes from a join), so it is
+      // intentionally left out.
+      final Map<String, dynamic> taskMap = {
+        'id': widget.task?.id ?? 'task-${DateTime.now().microsecondsSinceEpoch}',
+        'title': _titleController.text.trim(),
+        'description': _descriptionController.text.trim(),
+        'deadline': _formatForDb(_deadline!),
+        'status': _status,
+        'priority': _priority,
+        'assigned_to_id': _assigneeId,
+      };
 
       if (_isEditing) {
-        await DatabaseService.instance.updateTask(task);
+        final rowsChanged =
+            await DatabaseHelper.instance.updateTask(widget.task!.id, taskMap);
+        if (rowsChanged == 0) {
+          throw Exception('This task no longer exists in the database.');
+        }
       } else {
-        await DatabaseService.instance.insertTask(task);
+        await DatabaseHelper.instance.insertTask(taskMap);
       }
 
       messenger.hideCurrentSnackBar();
@@ -139,6 +187,72 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
     }
   }
 
+  Widget _buildAssigneeField() {
+    if (_loadingMembers) {
+      return const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Assignee *',
+          border: OutlineInputBorder(),
+        ),
+        child: SizedBox(
+          height: 20,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_membersError != null) {
+      return InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Assignee *',
+          border: const OutlineInputBorder(),
+          errorText: _membersError,
+        ),
+        child: TextButton.icon(
+          onPressed: _loadMembers,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Retry'),
+        ),
+      );
+    }
+
+    if (_members.isEmpty) {
+      return const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Assignee *',
+          border: OutlineInputBorder(),
+          helperText: 'No team members yet. Add one in the Team screen first.',
+        ),
+        child: Text('No team members available'),
+      );
+    }
+
+    return DropdownButtonFormField<String>(
+      value: _assigneeId,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Assignee *',
+        border: OutlineInputBorder(),
+      ),
+      items: _members
+          .map((m) => DropdownMenuItem<String>(
+                value: m['id'] as String,
+                child: Text(m['name'] as String),
+              ))
+          .toList(),
+      onChanged: (value) => setState(() => _assigneeId = value),
+      validator: (value) =>
+          value == null ? 'Please assign the task to a team member' : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,7 +277,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                 validator: (value) {
                   final text = value?.trim() ?? '';
                   if (text.isEmpty) return 'Title is required';
-                  if (text.length < 3) return 'Title must be at least 3 characters';
+                  if (text.length < 3) {
+                    return 'Title must be at least 3 characters';
+                  }
                   return null;
                 },
               ),
@@ -190,32 +306,19 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Assignee
-              DropdownButtonFormField<String>(
-                initialValue: _assignee,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Assignee *',
-                  border: OutlineInputBorder(),
-                ),
-                items: widget.teamMembers
-                    .map((name) => DropdownMenuItem(value: name, child: Text(name)))
-                    .toList(),
-                onChanged: (value) => setState(() => _assignee = value),
-                validator: (selectedValue) =>
-                    selectedValue == null ? 'Please assign the task to a team member' : null,
-              ),
+              // Assignee (loaded from the team_members table)
+              _buildAssigneeField(),
               const SizedBox(height: 16),
 
-              // Due date (FormField so it can show a validation error too)
+              // Due date (a FormField so it can show a validation error too)
               FormField<DateTime>(
-                initialValue: _dueDate,
-                validator: (fieldValue) {
-                  if (fieldValue == null) return 'Please choose a due date';
+                initialValue: _deadline,
+                validator: (value) {
+                  if (value == null) return 'Please choose a due date';
                   // New tasks cannot be due in the past. When editing, an
                   // existing overdue date is allowed so the task can still be
-                  // updated (e.g. marked Done).
-                  if (!_isEditing && fieldValue.isBefore(_today)) {
+                  // updated (for example marked Completed).
+                  if (!_isEditing && value.isBefore(_today)) {
                     return 'Due date cannot be in the past';
                   }
                   return null;
@@ -231,7 +334,9 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                         errorText: field.errorText,
                       ),
                       child: Text(
-                        _dueDate == null ? 'Tap to select a date' : _formatDate(_dueDate!),
+                        _deadline == null
+                            ? 'Tap to select a date'
+                            : _formatForDisplay(_deadline!),
                       ),
                     ),
                   );
@@ -241,7 +346,7 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
 
               // Priority
               DropdownButtonFormField<String>(
-                initialValue: _priority,
+                value: _priority,
                 decoration: const InputDecoration(
                   labelText: 'Priority',
                   border: OutlineInputBorder(),
@@ -249,15 +354,16 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                 items: _priorities
                     .map((p) => DropdownMenuItem(value: p, child: Text(p)))
                     .toList(),
-                onChanged: (value) => setState(() => _priority = value ?? _priority),
-                validator: (selectedValue) =>
-                    selectedValue == null ? 'Please select a priority' : null,
+                onChanged: (value) =>
+                    setState(() => _priority = value ?? _priority),
+                validator: (value) =>
+                    value == null ? 'Please select a priority' : null,
               ),
               const SizedBox(height: 16),
 
               // Status
               DropdownButtonFormField<String>(
-                initialValue: _status,
+                value: _status,
                 decoration: const InputDecoration(
                   labelText: 'Status',
                   border: OutlineInputBorder(),
@@ -265,9 +371,10 @@ class _TaskFormScreenState extends State<TaskFormScreen> {
                 items: _statuses
                     .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                     .toList(),
-                onChanged: (value) => setState(() => _status = value ?? _status),
-                validator: (selectedValue) =>
-                    selectedValue == null ? 'Please select a status' : null,
+                onChanged: (value) =>
+                    setState(() => _status = value ?? _status),
+                validator: (value) =>
+                    value == null ? 'Please select a status' : null,
               ),
               const SizedBox(height: 24),
 
