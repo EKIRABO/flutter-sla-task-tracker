@@ -24,11 +24,12 @@ class DatabaseHelper {
 
       final db = await openDatabase(
         join(dbPath, 'sla_tasks.db'),
-        version: 2,
+        version: 3,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
         },
         onCreate: _createDatabase,
+        onUpgrade: _upgradeDatabase,
       );
 
       _database = db;
@@ -67,6 +68,95 @@ class DatabaseHelper {
           ON DELETE SET NULL
       )
     ''');
+
+    await _createUsersTable(db);
+  }
+
+  // Upgrade existing databases without deleting saved data.
+  Future<void> _upgradeDatabase(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
+    if (oldVersion < 3) {
+      await _createUsersTable(db);
+    }
+  }
+
+  Future<void> _createUsersTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+        password_hash TEXT NOT NULL,
+        password_salt TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+  }
+
+  // USER ACCOUNT OPERATIONS
+
+  // Password hashing will be handled by an authentication
+  // service. Never save a plain-text password here.
+  Future<int> createUser({
+    required String name,
+    required String email,
+    required String passwordHash,
+    required String passwordSalt,
+  }) async {
+    final db = await database;
+
+    return db.insert(
+      'users',
+      {
+        'name': name.trim(),
+        'email': email.trim().toLowerCase(),
+        'password_hash': passwordHash,
+        'password_salt': passwordSalt,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.abort,
+    );
+  }
+
+  Future<Map<String, Object?>?> findUserByEmail(
+    String email,
+  ) async {
+    final db = await database;
+
+    final results = await db.query(
+      'users',
+      where: 'email = ?',
+      whereArgs: [email.trim().toLowerCase()],
+      limit: 1,
+    );
+
+    if (results.isEmpty) {
+      return null;
+    }
+
+    return results.first;
+  }
+
+  Future<Map<String, Object?>?> findUserById(
+    int id,
+  ) async {
+    final db = await database;
+
+    final results = await db.query(
+      'users',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+
+    if (results.isEmpty) {
+      return null;
+    }
+
+    return results.first;
   }
 
   // TASK OPERATIONS
@@ -83,7 +173,6 @@ class DatabaseHelper {
     );
   }
 
-  // Fetch tasks together with assignee names.
   Future<List<Map<String, Object?>>> fetchAllTasks() async {
     final db = await database;
 

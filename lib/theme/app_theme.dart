@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 abstract final class AppColors {
-  static const background = Color(0xFFF5F6FA);
-  static const primary = Color(0xFF34457A);
+  static const background = Color(0xFFF9FAFF);
+  static const primary = Color(0xFF6C4DFF);
   static const text = Color(0xFF20263A);
   static const mutedText = Color(0xFF737B91);
   static const onTrack = Color(0xFF24845A);

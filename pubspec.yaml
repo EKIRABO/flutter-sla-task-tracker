@@ -1,6 +1,6 @@
 
 name: flutter_sla_task_tracker
-description: "A new Flutter project."
+description: "A Flutter Project and SLA Task Tracker application."
 
 publish_to: 'none'
 
@@ -14,15 +14,14 @@ dependencies:
     sdk: flutter
 
   # SQLite database for storing tasks and team members
-  sqflite: ^2.3.0
+  sqflite: ^2.4.4+1
 
-  # File paths for the SQLite database
+  # Database file paths
   path: ^1.9.0
 
-  # Cupertino icons
+  # iOS-style icons
   cupertino_icons: ^1.0.8
-  sqflite: ^2.4.4+1
-  path: ^1.9.1
+  cryptography: ^2.9.0
 
 dev_dependencies:
   flutter_test:
@@ -31,7 +30,7 @@ dev_dependencies:
   # SQLite support for desktop testing
   sqflite_common_ffi: ^2.3.0+4
 
-  # Recommended Flutter lint rules
+  # Flutter code quality rules
   flutter_lints: ^6.0.0
 
 flutter:

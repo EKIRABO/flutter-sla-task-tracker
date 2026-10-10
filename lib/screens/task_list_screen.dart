@@ -6,6 +6,7 @@ import '../models/task_model.dart';
 import '../widgets/app_bottom_navigation.dart';
 import '../widgets/task_card.dart';
 import 'task_details_screen.dart';
+import 'task_form_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({
@@ -65,6 +66,22 @@ class _TaskListScreenState extends State<TaskListScreen> {
         '${date.day.toString().padLeft(2, '0')}';
   }
 
+  // OPEN CREATE TASK FORM
+  Future<void> _createTask() async {
+    final saved = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const TaskFormScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (saved == true) {
+      _refreshTasks();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,7 +107,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
       body: Column(
         children: [
-          // Search bar
+          // SEARCH BAR
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
@@ -116,7 +133,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // SLA filters
+          // SLA FILTERS
           SizedBox(
             height: 55,
             child: ListView(
@@ -150,7 +167,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
             ),
           ),
 
-          // Load tasks from SQLite
+          // TASKS FROM SQLITE
           Expanded(
             child: FutureBuilder<List<Map<String, Object?>>>(
               future: tasksFuture,
@@ -190,7 +207,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 final now = DateTime.now();
 
-                // Search and filter tasks
+                // SEARCH AND SLA FILTERING
                 final filteredTasks = tasks.where((task) {
                   final title = task.title.toLowerCase();
                   final assignee =
@@ -212,7 +229,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
                 return Column(
                   children: [
-                    // Number of matching tasks
+                    // TASK COUNT
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
                         16, 8, 16, 12,
@@ -229,7 +246,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
                       ),
                     ),
 
-                    // Task list or empty state
+                    // TASK LIST OR EMPTY STATE
                     Expanded(
                       child: RefreshIndicator(
                         onRefresh: _pullToRefresh,
@@ -257,7 +274,8 @@ class _TaskListScreenState extends State<TaskListScreen> {
                                   SizedBox(height: 6),
                                   Center(
                                     child: Text(
-                                      'Try a different search or filter.',
+                                      'Tap + to create a task or try a different filter.',
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(
                                         color: Colors.blueGrey,
                                       ),
@@ -324,7 +342,16 @@ class _TaskListScreenState extends State<TaskListScreen> {
         ],
       ),
 
-      // Bior's bottom navigation
+      // CREATE TASK BUTTON
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Create task',
+        backgroundColor: const Color(0xFF2563EB),
+        foregroundColor: Colors.white,
+        onPressed: _createTask,
+        child: const Icon(Icons.add),
+      ),
+
+      // BOTTOM NAVIGATION
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 1,
         onDestinationSelected: widget.onDestinationSelected,
