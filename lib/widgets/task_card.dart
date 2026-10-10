@@ -43,10 +43,7 @@ class TaskCard extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
 
             const SizedBox(height: 8),
@@ -57,12 +54,8 @@ class TaskCard extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // SLA status badge
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 5,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
                 color: getSlaColor().withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),

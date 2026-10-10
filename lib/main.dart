@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'screens/task_list_screen.dart';
+
+import 'screens/sign_in_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -13,12 +15,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'SLA Task Tracker',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
-        ),
-      ),
-      home: const TaskListScreen(),
+      theme: AppTheme.light,
+      home: const SignInScreen(),
     );
   }
 }

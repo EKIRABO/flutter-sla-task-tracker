@@ -1,126 +1,173 @@
-import 'package:sqflite/sqflite.dart';
+
 import 'package:path/path.dart';
+import 'package:sqflite/sqflite.dart';
 
 class DatabaseHelper {
-  // Creates a single, shared instance of the database helper across the app.
-  static final DatabaseHelper instance = DatabaseHelper._init();
+  DatabaseHelper._();
+
+  static final DatabaseHelper instance = DatabaseHelper._();
+
   static Database? _database;
+  static Future<Database>? _databaseOpening;
 
-  DatabaseHelper._init();
+  Future<Database> get database async {
+    if (_database != null) {
+      return _database!;
+    }
 
- // Checks if database is already open. If it isn't, it opens it.
- Future<Database> get database async {
- if (_database != null) return _database!;
- _database = await _initDB('sla_tasks.db');
- return _database!; 
- } 
+    return _databaseOpening ??= _openDatabase();
+  }
 
- // Finds the secure folder on the user's phone to store the database file
- Future<Database> _initDB(String filePath) async {
-  final dbPath = await getDatabasesPath();
-  final path = join(dbPath, filePath);
+  Future<Database> _openDatabase() async {
+    try {
+      final dbPath = await getDatabasesPath();
 
- // Opens the database if it's the first time running the app
- return await openDatabase(
-  path,
-  version: 2,
-  onCreate: _createDB,
- );
-}
+      final db = await openDatabase(
+        join(dbPath, 'sla_tasks.db'),
+        version: 2,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: _createDatabase,
+      );
 
-Future _createDB(Database db, int version) async {
-  // Create Team members table
-  await db.execute('''
-    CREATE TABLE team_members (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL,
-    email TEXT NOT NULL,
-    avatar_url TEXT
-  )
-''');
+      _database = db;
+      return db;
+    } catch (_) {
+      _databaseOpening = null;
+      rethrow;
+    }
+  }
 
-  // Create Tasks table
-  await db.execute('''
-    CREATE TABLE tasks (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    deadline TEXT NOT NULL, -- Stored as YYYY-MM-DD
-    status TEXT NOT NULL, -- "To Do", "In Progress", "Completed" instead of boolean
-    priority TEXT NOT NULL, -- Explicity named column
-    assigned_to_id TEXT,
-    FOREIGN KEY (assigned_to_id) REFERENCES team_members (id) ON DELETE SET NULL
-  )
-''');
-}
- 
-// TASKS DB
+  Future<void> _createDatabase(
+    Database db,
+    int version,
+  ) async {
+    await db.execute('''
+      CREATE TABLE team_members (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        email TEXT NOT NULL,
+        avatar_url TEXT
+      )
+    ''');
 
-// Insert new task into the DB
-Future<int> insertTask(Map<String, dynamic> taskJson) async {
-  final db = await instance.database;
-  return await db.insert('tasks', taskJson, conflictAlgorithm: ConflictAlgorithm.replace);
-}
+    await db.execute('''
+      CREATE TABLE tasks (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        deadline TEXT NOT NULL,
+        status TEXT NOT NULL,
+        priority TEXT NOT NULL,
+        assigned_to_id TEXT,
+        FOREIGN KEY (assigned_to_id)
+          REFERENCES team_members (id)
+          ON DELETE SET NULL
+      )
+    ''');
+  }
 
-// Fetch all tasks
-Future<List<Map<String, dynamic>>> fetchAllTasks() async {
-  final db = await instance.database;
-  return await db.query('tasks', orderBy: 'deadline ASC');
-}
+  // TASK OPERATIONS
 
-// Fetch tasks assigned to a specific team member
-Future<List<Map<String, dynamic>>> fetchTasksByMember(String memberId) async {
-  final db = await instance.database;
-  return await db.query(
-    'tasks',
-    where: 'assigned_to_id =?',
-    whereArgs: [memberId],
-    orderBy: 'deadline ASC',
-  );
-}
+  Future<int> insertTask(
+    Map<String, Object?> task,
+  ) async {
+    final db = await database;
 
-// Updating task details 
-Future<int> updateTask(String id, Map<String, dynamic> taskJson) async {
-  final db = await instance.database;
-  return await db.update(
-    'tasks',
-    taskJson,
-    where: 'id = ?',
-    whereArgs: [id],
-  );
-}
+    return db.insert(
+      'tasks',
+      task,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
 
-// Delete a task
-Future<int> deleteTask(String id) async {
-  final db = await instance.database;
-  return await db.delete(
-    'tasks',
-    where: 'id = ?',
-    whereArgs: [id],
-  );
-}
-// TEAM MEMBERS DB 
+  // Fetch tasks together with assignee names.
+  Future<List<Map<String, Object?>>> fetchAllTasks() async {
+    final db = await database;
 
-// Add new team member
-Future<int> insertMember(Map<String, dynamic> memberJson) async {
-  final db = await instance.database;
-  return await db.insert('team_members', memberJson, conflictAlgorithm: ConflictAlgorithm.replace);
-}
+    return db.rawQuery('''
+      SELECT tasks.*, team_members.name AS assignee_name
+      FROM tasks
+      LEFT JOIN team_members
+        ON tasks.assigned_to_id = team_members.id
+      ORDER BY tasks.deadline ASC
+    ''');
+  }
 
-// Fetch all team members
-Future<List<Map<String, dynamic>>> fetchAllMembers() async{
-  final db = await instance.database;
-  return await db.query('team_members', orderBy: 'name ASC');
-}
+  Future<List<Map<String, Object?>>> fetchTasksByMember(
+    String memberId,
+  ) async {
+    final db = await database;
 
-// Delete team members
-Future<int> deleteMember(String id) async {
-  final db = await instance.database;
-  return await db.delete(
-    'team_members',
-    where: 'id =?',
-    whereArgs: [id],
-  );
- }
+    return db.rawQuery(
+      '''
+      SELECT tasks.*, team_members.name AS assignee_name
+      FROM tasks
+      LEFT JOIN team_members
+        ON tasks.assigned_to_id = team_members.id
+      WHERE tasks.assigned_to_id = ?
+      ORDER BY tasks.deadline ASC
+      ''',
+      [memberId],
+    );
+  }
+
+  Future<int> updateTask(
+    String id,
+    Map<String, Object?> task,
+  ) async {
+    final db = await database;
+
+    return db.update(
+      'tasks',
+      task,
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> deleteTask(String id) async {
+    final db = await database;
+
+    return db.delete(
+      'tasks',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  // TEAM MEMBER OPERATIONS
+
+  Future<int> insertMember(
+    Map<String, Object?> member,
+  ) async {
+    final db = await database;
+
+    return db.insert(
+      'team_members',
+      member,
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, Object?>>> fetchAllMembers() async {
+    final db = await database;
+
+    return db.query(
+      'team_members',
+      orderBy: 'name ASC',
+    );
+  }
+
+  Future<int> deleteMember(String id) async {
+    final db = await database;
+
+    return db.delete(
+      'team_members',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }
