@@ -59,8 +59,12 @@ class _TeamProfileScreenState extends State<TeamProfileScreen> {
             onPressed: () async {
               final name = nameController.text.trim();
               final role = roleController.text.trim();
+              final email = emailController.text.trim();
 
-              if (name.isEmpty || role.isEmpty) {
+              if (name.isEmpty || role.isEmpty || email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('All field are required')),
+                );
                 return;
               }
             // Create an object using the imported data
@@ -68,17 +72,29 @@ class _TeamProfileScreenState extends State<TeamProfileScreen> {
                 id: DateTime.now().millisecondsSinceEpoch.toString(), // Generates a unique text ID
                 name: name,
                 role: role,
-                email: emailController.text.trim(),
+                email: email,
                 avatarUrl: null,
               );
             // Save it to SQLite using helper class
+            try{
               await DatabaseHelper.instance.insertMember(newMember.toJson());
 
               if (!mounted) return;
               // ignore: use_build_context_synchronously
               Navigator.pop(context);
               _refreshMembersList();
-            },
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Team member added successfully!')),
+              );
+            } catch (error) {
+              if (!mounted) return;
+              // ignore: use_build_context_synchronously
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to save to database: $error')),
+              );
+            }
+          },
             child: const Text('Save'),
           ),
         ],

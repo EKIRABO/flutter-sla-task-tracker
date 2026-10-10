@@ -23,7 +23,7 @@ class DatabaseHelper {
  // Opens the database if it's the first time running the app
  return await openDatabase(
   path,
-  version: 1,
+  version: 2,
   onCreate: _createDB,
  );
 }
@@ -31,7 +31,7 @@ class DatabaseHelper {
 Future _createDB(Database db, int version) async {
   // Create Team members table
   await db.execute('''
-    CREATE TABLE team_member (
+    CREATE TABLE team_members (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL,
@@ -46,9 +46,9 @@ Future _createDB(Database db, int version) async {
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    deadline TEXT NOT NULL,
-    isCompleted INTEGER NOT NULL DEFAULT 0,
-    Priority TEXT NOT NULL,
+    deadline TEXT NOT NULL, -- Stored as YYYY-MM-DD
+    status TEXT NOT NULL, -- "To Do", "In Progress", "Completed" instead of boolean
+    priority TEXT NOT NULL, -- Explicity named column
     assigned_to_id TEXT,
     FOREIGN KEY (assigned_to_id) REFERENCES team_members (id) ON DELETE SET NULL
   )
