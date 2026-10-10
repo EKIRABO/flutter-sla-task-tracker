@@ -9,12 +9,11 @@ flutter pub get
 flutter run
 ```
 
-The app creates `sla_tasks.db` on first launch. It contains `tasks` and
-`team_members` tables and starts empty; no sample tasks are inserted. Use the
-Team tab to add members and the Tasks tab to add tasks. Tasks can be assigned to
-a team member, searched and filtered by SLA, opened for details, edited, and
-deleted. The Dashboard and Task List read the same records and use the same SLA
-calculation.
+The app creates `sla_tasks.db` on first launch using the shared task and team
+member schema. It starts empty; no sample tasks are inserted. Dashboard and Task
+List read task records from this database and share one SLA calculation. The
+Team tab manages team members; the Profile tab lets the signed-in user update
+their display name.
 
 ## SLA calculation
 

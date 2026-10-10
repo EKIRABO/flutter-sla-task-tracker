@@ -76,16 +76,6 @@ class DatabaseHelper {
     );
   }
 
-  Future<int> updateTask(String id, Map<String, Object?> task) async {
-    final db = await database;
-    return db.update('tasks', task, where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<int> deleteTask(String id) async {
-    final db = await database;
-    return db.delete('tasks', where: 'id = ?', whereArgs: [id]);
-  }
-
   Future<List<Map<String, Object?>>> fetchAllMembers() async {
     final db = await database;
     return db.query('team_members', orderBy: 'name ASC');

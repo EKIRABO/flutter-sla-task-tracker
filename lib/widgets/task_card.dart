@@ -6,7 +6,6 @@ class TaskCard extends StatelessWidget {
   final String priority;
   final String deadline;
   final String sla;
-  final VoidCallback? onTap;
 
   const TaskCard({
     super.key,
@@ -15,7 +14,6 @@ class TaskCard extends StatelessWidget {
     required this.priority,
     required this.deadline,
     required this.sla,
-    this.onTap,
   });
 
   // Returns a different color depending on the SLA status
@@ -38,49 +36,39 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 8),
+
+            Text('Assigned to: $assignee'),
+            Text('Priority: $priority'),
+            Text('Due: $deadline'),
+
+            const SizedBox(height: 10),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: getSlaColor().withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                sla,
+                style: TextStyle(
+                  color: getSlaColor(),
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
-              const SizedBox(height: 8),
-
-              Text('Assigned to: $assignee'),
-              Text('Priority: $priority'),
-              Text('Due: $deadline'),
-
-              const SizedBox(height: 10),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: getSlaColor().withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  sla,
-                  style: TextStyle(
-                    color: getSlaColor(),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

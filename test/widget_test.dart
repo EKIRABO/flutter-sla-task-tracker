@@ -131,9 +131,14 @@ void main() {
     await pumpDatabase(tester);
 
     expect(find.text('Fix Navigation Bug'), findsOneWidget);
-    await tester.tap(find.widgetWithText(ChoiceChip, 'At Risk'));
-    await tester.pumpAndSettle();
+    expect(find.text('Overdue'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Design Login Screen'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
     expect(find.text('Design Login Screen'), findsOneWidget);
+    expect(find.text('At Risk'), findsOneWidget);
   });
 
   testWidgets('Team and Profile tabs are connected to the workspace', (
