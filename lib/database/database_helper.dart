@@ -27,20 +27,33 @@ class DatabaseHelper {
   onCreate: _createDB,
  );
 }
-// Creates a team members table into DB
+
 Future _createDB(Database db, int version) async {
+  // Create Team members table
   await db.execute('''
-    CREATE TABLE tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    description TEXT,
-    assignee TEXT NOT NULL,
-    deadline TEXT NOT NULL,
-    isCompleted INTEGER NOT NULL,
-    Priority TEXT NOT NULL
+    CREATE TABLE team_member (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    email TEXT NOT NULL,
+    avatar_url TEXT
   )
 ''');
- }
+
+  // Create Tasks table
+  await db.execute('''
+    CREATE TABLE tasks (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    deadline TEXT NOT NULL,
+    isCompleted INTEGER NOT NULL DEFAULT 0,
+    Priority TEXT NOT NULL,
+    assigned_to_id TEXT,
+    FOREIGN KEY (assigned_to_id) REFERENCES team_members (id) ON DELETE SET NULL
+  )
+''');
+}
  
 // TASKS DB
 
