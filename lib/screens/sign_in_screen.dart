@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
-import 'dashboard_screen.dart';
+import 'workspace_screen.dart';
 
 class SignInScreen extends StatefulWidget {
   const SignInScreen({super.key});
@@ -27,9 +27,7 @@ class _SignInScreenState extends State<SignInScreen> {
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => DashboardScreen(
-          userName: _nameController.text.trim(),
-        ),
+        builder: (_) => WorkspaceScreen(userName: _nameController.text.trim()),
       ),
     );
   }
@@ -70,10 +68,8 @@ class _SignInScreenState extends State<SignInScreen> {
                     const SizedBox(height: 8),
                     Text(
                       'Welcome back. Choose your name to continue to your team workspace.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.mutedText,
-                            height: 1.5,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: AppColors.mutedText, height: 1.5),
                     ),
                     const SizedBox(height: 32),
                     Card(

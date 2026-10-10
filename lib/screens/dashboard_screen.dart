@@ -1,208 +1,169 @@
 import 'package:flutter/material.dart';
 
+import '../models/task_model.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_bottom_navigation.dart';
-import 'task_list_screen.dart';
-
-enum _SlaStatus { onTrack, atRisk, overdue, completed }
-
-class _DashboardTask {
-  const _DashboardTask({
-    required this.title,
-    required this.assignee,
-    required this.deadline,
-    required this.status,
-  });
-
-  final String title;
-  final String assignee;
-  final String deadline;
-  final _SlaStatus status;
-}
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key, required this.userName});
+  const DashboardScreen({
+    super.key,
+    required this.userName,
+    required this.tasksFuture,
+    required this.onDestinationSelected,
+  });
 
   final String userName;
-
-  static const List<_DashboardTask> _tasks = [
-    _DashboardTask(
-      title: 'Design Login Screen',
-      assignee: 'Esther',
-      deadline: 'Oct 8',
-      status: _SlaStatus.atRisk,
-    ),
-    _DashboardTask(
-      title: 'Set Up Database',
-      assignee: 'Bior',
-      deadline: 'Oct 10',
-      status: _SlaStatus.onTrack,
-    ),
-    _DashboardTask(
-      title: 'Fix Navigation Bug',
-      assignee: 'Kenia',
-      deadline: 'Oct 5',
-      status: _SlaStatus.overdue,
-    ),
-    _DashboardTask(
-      title: 'Create Dashboard',
-      assignee: 'Gael',
-      deadline: 'Oct 7',
-      status: _SlaStatus.completed,
-    ),
-  ];
-
-  int _countStatus(_SlaStatus status) =>
-      _tasks.where((task) => task.status == status).length;
-
-  double get _completion =>
-      _countStatus(_SlaStatus.completed) / _tasks.length;
-
-  void _onNavigationSelected(BuildContext context, int index) {
-    if (index == 1) {
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => const TaskListScreen(),
-        ),
-      );
-      return;
-    }
-
-    if (index > 1) {
-      final section = index == 2 ? 'Team' : 'Profile';
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text('$section screen is not connected yet.')),
-        );
-    }
-  }
+  final Future<List<Map<String, Object?>>> tasksFuture;
+  final ValueChanged<int> onDestinationSelected;
 
   @override
   Widget build(BuildContext context) {
-    final attentionTasks = _tasks
-        .where(
-          (task) =>
-              task.status == _SlaStatus.atRisk ||
-              task.status == _SlaStatus.overdue,
-        )
-        .toList();
-
     return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-          children: [
-            Row(
+      body: FutureBuilder<List<Map<String, Object?>>>(
+        future: tasksFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Text('Could not load dashboard data: ${snapshot.error}'),
+              ),
+            );
+          }
+
+          final tasks = (snapshot.data ?? const [])
+              .map(TaskRecord.fromMap)
+              .toList();
+          final now = DateTime.now();
+          int countStatus(SlaStatus status) =>
+              tasks.where((task) => task.slaStatusAt(now) == status).length;
+          final completed = countStatus(SlaStatus.completed);
+          final attentionTasks = tasks.where((task) {
+            final status = task.slaStatusAt(now);
+            return status == SlaStatus.atRisk || status == SlaStatus.overdue;
+          }).toList();
+
+          return SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'PROJECT WORKSPACE',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: AppColors.mutedText,
-                              letterSpacing: 1.2,
-                              fontWeight: FontWeight.w700,
-                            ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'PROJECT WORKSPACE',
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: AppColors.mutedText,
+                                  letterSpacing: 1.2,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Hi, $userName',
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Hi, $userName',
-                        style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.primary.withValues(
+                        alpha: 0.12,
                       ),
-                    ],
-                  ),
+                      foregroundColor: AppColors.primary,
+                      child: Text(
+                        _initials(userName),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ],
                 ),
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                  foregroundColor: AppColors.primary,
-                  child: Text(
-                    _initials(userName),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                const SizedBox(height: 24),
+                _ProjectProgressCard(
+                  completed: completed,
+                  total: tasks.length,
+                  progress: tasks.isEmpty ? 0 : completed / tasks.length,
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            _ProjectProgressCard(
-              completed: _countStatus(_SlaStatus.completed),
-              total: _tasks.length,
-              progress: _completion,
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'SLA overview',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _SlaSummaryCard(
-                  label: 'On Track',
-                  count: _countStatus(_SlaStatus.onTrack),
-                  color: AppColors.onTrack,
-                  icon: Icons.check_circle_outline_rounded,
-                ),
-                _SlaSummaryCard(
-                  label: 'At Risk',
-                  count: _countStatus(_SlaStatus.atRisk),
-                  color: AppColors.atRisk,
-                  icon: Icons.warning_amber_rounded,
-                ),
-                _SlaSummaryCard(
-                  label: 'Overdue',
-                  count: _countStatus(_SlaStatus.overdue),
-                  color: AppColors.overdue,
-                  icon: Icons.error_outline_rounded,
-                ),
-                _SlaSummaryCard(
-                  label: 'Completed',
-                  count: _countStatus(_SlaStatus.completed),
-                  color: AppColors.completed,
-                  icon: Icons.task_alt_rounded,
-                ),
-              ],
-            ),
-            const SizedBox(height: 26),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Needs attention',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
+                const SizedBox(height: 24),
                 Text(
-                  '${attentionTasks.length} tasks',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  'SLA overview',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _SlaSummaryCard(
+                      label: 'On Track',
+                      count: countStatus(SlaStatus.onTrack),
+                      color: AppColors.onTrack,
+                      icon: Icons.check_circle_outline_rounded,
+                    ),
+                    _SlaSummaryCard(
+                      label: 'At Risk',
+                      count: countStatus(SlaStatus.atRisk),
+                      color: AppColors.atRisk,
+                      icon: Icons.warning_amber_rounded,
+                    ),
+                    _SlaSummaryCard(
+                      label: 'Overdue',
+                      count: countStatus(SlaStatus.overdue),
+                      color: AppColors.overdue,
+                      icon: Icons.error_outline_rounded,
+                    ),
+                    _SlaSummaryCard(
+                      label: 'Completed',
+                      count: completed,
+                      color: AppColors.completed,
+                      icon: Icons.task_alt_rounded,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 26),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Needs attention',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    Text(
+                      '${attentionTasks.length} tasks',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 12),
+                if (attentionTasks.isEmpty)
+                  const _NoAttentionCard()
+                else
+                  ...attentionTasks.map(
+                    (task) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _AttentionTaskCard(task: task),
+                    ),
+                  ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (attentionTasks.isEmpty)
-              const _NoAttentionCard()
-            else
-              ...attentionTasks.map(
-                (task) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _AttentionTaskCard(task: task),
-                ),
-              ),
-          ],
-        ),
+          );
+        },
       ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: 0,
-        onDestinationSelected: (index) =>
-            _onNavigationSelected(context, index),
+        onDestinationSelected: onDestinationSelected,
       ),
     );
   }
@@ -318,18 +279,14 @@ class _SlaSummaryCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 '$count',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontSize: 24,
-                      color: AppColors.text,
-                    ),
+                style: Theme.of(context).textTheme.headlineMedium
+                    ?.copyWith(fontSize: 24, color: AppColors.text),
               ),
               const SizedBox(height: 2),
               Text(
                 label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: color, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -342,14 +299,14 @@ class _SlaSummaryCard extends StatelessWidget {
 class _AttentionTaskCard extends StatelessWidget {
   const _AttentionTaskCard({required this.task});
 
-  final _DashboardTask task;
+  final TaskRecord task;
 
   @override
   Widget build(BuildContext context) {
-    final color = task.status == _SlaStatus.overdue
+    final status = task.slaStatusAt(DateTime.now());
+    final color = status == SlaStatus.overdue
         ? AppColors.overdue
         : AppColors.atRisk;
-    final status = task.status == _SlaStatus.overdue ? 'Overdue' : 'At Risk';
 
     return Card(
       child: Padding(
@@ -380,19 +337,24 @@ class _AttentionTaskCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 7),
                   Text(
-                    '${task.assignee}  ·  Due ${task.deadline}',
+                    '${task.assignee ?? 'Unassigned'}  ·  Due ${_formatDate(task.deadline)}',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            _StatusBadge(label: status, color: color),
+            _StatusBadge(label: status.label, color: color),
           ],
         ),
       ),
     );
   }
+
+  String _formatDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }
 
 class _StatusBadge extends StatelessWidget {
