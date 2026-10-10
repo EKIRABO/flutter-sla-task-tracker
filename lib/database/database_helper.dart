@@ -13,7 +13,8 @@ class DatabaseHelper {
  if (_database != null) return _database!;
  _database = await _initDB('sla_tasks.db');
  return _database!; 
- } 
+ }
+
 
  // Finds the secure folder on the user's phone to store the database file
  Future<Database> _initDB(String filePath) async {
@@ -25,21 +26,11 @@ class DatabaseHelper {
   path,
   version: 2,
   onCreate: _createDB,
+  onUpgrade: _upgradeDB,
  );
 }
 
 Future _createDB(Database db, int version) async {
-  // Create Team members table
-  await db.execute('''
-    CREATE TABLE team_members (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    role TEXT NOT NULL,
-    email TEXT NOT NULL,
-    avatar_url TEXT
-  )
-''');
-
   // Create Tasks table
   await db.execute('''
     CREATE TABLE tasks (
@@ -53,8 +44,33 @@ Future _createDB(Database db, int version) async {
     FOREIGN KEY (assigned_to_id) REFERENCES team_members (id) ON DELETE SET NULL
   )
 ''');
+
+  // 2. Create Team members table
+  await db.execute('''
+    CREATE TABLE team_members (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      role TEXT NOT NULL,
+      email TEXT NOT NULL,
+      avatar_url TEXT
+    )
+  ''');
 }
- 
+
+Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+  if (oldVersion < 2) {
+
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS team_members (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        email TEXT NOT NULL,
+        avatar_url TEXT
+      )
+    ''');
+  }
+}
 // TASKS DB
 
 // Insert new task into the DB
