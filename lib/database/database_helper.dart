@@ -40,6 +40,8 @@ class DatabaseHelper {
     }
   }
 
+  // DATABASE TABLES
+
   Future<void> _createDatabase(
     Database db,
     int version,
@@ -98,8 +100,8 @@ class DatabaseHelper {
 
   // USER ACCOUNT OPERATIONS
 
-  // Password hashing will be handled by an authentication
-  // service. Never save a plain-text password here.
+  // Password hashing is handled by the authentication
+  // service. Never store a plain-text password.
   Future<int> createUser({
     required String name,
     required String email,
@@ -258,5 +260,242 @@ class DatabaseHelper {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // DEMO / SEED DATA
+
+  // Adds sample team members and tasks for demonstrations.
+  // Existing user accounts and user-created records are preserved.
+  //
+  // Demo records use fixed IDs so they are not duplicated.
+  Future<void> seedDemoData() async {
+    final db = await database;
+
+    await db.transaction((txn) async {
+      // SAMPLE TEAM MEMBERS
+
+      final demoMembers = [
+        {
+          'id': 'demo-member-1',
+          'name': 'Amina',
+          'role': 'Frontend Developer',
+          'email': 'amina.demo@example.com',
+        },
+        {
+          'id': 'demo-member-2',
+          'name': 'David',
+          'role': 'Backend Developer',
+          'email': 'david.demo@example.com',
+        },
+        {
+          'id': 'demo-member-3',
+          'name': 'Grace',
+          'role': 'UI/UX Designer',
+          'email': 'grace.demo@example.com',
+        },
+        {
+          'id': 'demo-member-4',
+          'name': 'Brian',
+          'role': 'QA Tester',
+          'email': 'brian.demo@example.com',
+        },
+        {
+          'id': 'demo-member-5',
+          'name': 'Sarah',
+          'role': 'Project Manager',
+          'email': 'sarah.demo@example.com',
+        },
+        {
+          'id': 'demo-member-6',
+          'name': 'Kevin',
+          'role': 'Mobile Developer',
+          'email': 'kevin.demo@example.com',
+        },
+      ];
+
+      for (final member in demoMembers) {
+        await txn.insert(
+          'team_members',
+          member,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+
+      // Rename only the three original demo members
+      // if they still have their original demo names.
+      final oldDemoNames = {
+        'demo-member-1': 'Alex Johnson',
+        'demo-member-2': 'Sarah Williams',
+        'demo-member-3': 'Daniel Brown',
+      };
+
+      for (final member in demoMembers.take(3)) {
+        final id = member['id']!;
+        await txn.update(
+          'team_members',
+          {
+            'name': member['name'],
+            'role': member['role'],
+            'email': member['email'],
+          },
+          where: 'id = ? AND name = ?',
+          whereArgs: [id, oldDemoNames[id]],
+        );
+      }
+
+      // SAMPLE TASKS
+
+      final now = DateTime.now();
+
+      String deadline(int days) {
+        return now.add(Duration(days: days)).toIso8601String();
+      }
+
+      final demoTasks = [
+        {
+          'id': 'demo-task-1',
+          'title': 'Design Login Screen',
+          'description': 'Create the login and registration UI.',
+          'deadline': deadline(5),
+          'status': 'In Progress',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-3',
+        },
+        {
+          'id': 'demo-task-2',
+          'title': 'Implement Authentication',
+          'description': 'Add secure login and registration.',
+          'deadline': deadline(-2),
+          'status': 'In Progress',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-2',
+        },
+        {
+          'id': 'demo-task-3',
+          'title': 'Build Dashboard',
+          'description': 'Display task statistics and progress.',
+          'deadline': deadline(2),
+          'status': 'Pending',
+          'priority': 'Medium',
+          'assigned_to_id': 'demo-member-1',
+        },
+        {
+          'id': 'demo-task-4',
+          'title': 'Test Task Creation',
+          'description': 'Verify task creation and validation.',
+          'deadline': deadline(-1),
+          'status': 'Completed',
+          'priority': 'Low',
+          'assigned_to_id': 'demo-member-4',
+        },
+        {
+          'id': 'demo-task-5',
+          'title': 'Create Task Details Screen',
+          'description': 'Show task information and deadlines.',
+          'deadline': deadline(4),
+          'status': 'In Progress',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-6',
+        },
+        {
+          'id': 'demo-task-6',
+          'title': 'Implement SQLite Database',
+          'description': 'Save tasks and team members locally.',
+          'deadline': deadline(-4),
+          'status': 'Completed',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-2',
+        },
+        {
+          'id': 'demo-task-7',
+          'title': 'Design Team Members Screen',
+          'description': 'Create the team member list interface.',
+          'deadline': deadline(6),
+          'status': 'Pending',
+          'priority': 'Medium',
+          'assigned_to_id': 'demo-member-3',
+        },
+        {
+          'id': 'demo-task-8',
+          'title': 'Fix Navigation Bugs',
+          'description': 'Resolve screen navigation issues.',
+          'deadline': deadline(-3),
+          'status': 'Pending',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-6',
+        },
+        {
+          'id': 'demo-task-9',
+          'title': 'Add Form Validation',
+          'description': 'Validate required fields and inputs.',
+          'deadline': deadline(1),
+          'status': 'In Progress',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-1',
+        },
+        {
+          'id': 'demo-task-10',
+          'title': 'Test User Registration',
+          'description': 'Check account creation and login.',
+          'deadline': deadline(-2),
+          'status': 'Completed',
+          'priority': 'Medium',
+          'assigned_to_id': 'demo-member-4',
+        },
+        {
+          'id': 'demo-task-11',
+          'title': 'Improve App Theme',
+          'description': 'Apply consistent colors and typography.',
+          'deadline': deadline(7),
+          'status': 'Pending',
+          'priority': 'Low',
+          'assigned_to_id': 'demo-member-3',
+        },
+        {
+          'id': 'demo-task-12',
+          'title': 'Implement SLA Tracking',
+          'description': 'Calculate overdue and at-risk tasks.',
+          'deadline': deadline(-1),
+          'status': 'In Progress',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-2',
+        },
+        {
+          'id': 'demo-task-13',
+          'title': 'Prepare Project Documentation',
+          'description': 'Document features and setup steps.',
+          'deadline': deadline(3),
+          'status': 'In Progress',
+          'priority': 'Medium',
+          'assigned_to_id': 'demo-member-5',
+        },
+        {
+          'id': 'demo-task-14',
+          'title': 'Run Integration Tests',
+          'description': 'Verify the main app features.',
+          'deadline': deadline(5),
+          'status': 'Pending',
+          'priority': 'High',
+          'assigned_to_id': 'demo-member-4',
+        },
+        {
+          'id': 'demo-task-15',
+          'title': 'Prepare Final Presentation',
+          'description': 'Organize the app demonstration.',
+          'deadline': deadline(8),
+          'status': 'Pending',
+          'priority': 'Medium',
+          'assigned_to_id': 'demo-member-5',
+        },
+      ];
+
+      for (final task in demoTasks) {
+        await txn.insert(
+          'tasks',
+          task,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
+      }
+    });
   }
 }
