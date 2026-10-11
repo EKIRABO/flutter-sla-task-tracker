@@ -265,9 +265,10 @@ class DatabaseHelper {
   // DEMO / SEED DATA
 
   // Adds sample team members and tasks for demonstrations.
-  // Existing user accounts and user-created records are preserved.
-  //
-  // Demo records use fixed IDs so they are not duplicated.
+  // Uses fixed IDs to prevent duplicates.
+  // Existing user accounts and manually created records
+  // are not changed.
+
   Future<void> seedDemoData() async {
     final db = await database;
 
@@ -321,8 +322,9 @@ class DatabaseHelper {
         );
       }
 
-      // Rename only the three original demo members
-      // if they still have their original demo names.
+      // Update the original three demo member names
+      // only if their old demo names are still present.
+
       final oldDemoNames = {
         'demo-member-1': 'Alex Johnson',
         'demo-member-2': 'Sarah Williams',
@@ -331,6 +333,7 @@ class DatabaseHelper {
 
       for (final member in demoMembers.take(3)) {
         final id = member['id']!;
+
         await txn.update(
           'team_members',
           {
@@ -375,7 +378,7 @@ class DatabaseHelper {
           'title': 'Build Dashboard',
           'description': 'Display task statistics and progress.',
           'deadline': deadline(2),
-          'status': 'Pending',
+          'status': 'To Do',
           'priority': 'Medium',
           'assigned_to_id': 'demo-member-1',
         },
@@ -411,7 +414,7 @@ class DatabaseHelper {
           'title': 'Design Team Members Screen',
           'description': 'Create the team member list interface.',
           'deadline': deadline(6),
-          'status': 'Pending',
+          'status': 'To Do',
           'priority': 'Medium',
           'assigned_to_id': 'demo-member-3',
         },
@@ -420,7 +423,7 @@ class DatabaseHelper {
           'title': 'Fix Navigation Bugs',
           'description': 'Resolve screen navigation issues.',
           'deadline': deadline(-3),
-          'status': 'Pending',
+          'status': 'To Do',
           'priority': 'High',
           'assigned_to_id': 'demo-member-6',
         },
@@ -447,7 +450,7 @@ class DatabaseHelper {
           'title': 'Improve App Theme',
           'description': 'Apply consistent colors and typography.',
           'deadline': deadline(7),
-          'status': 'Pending',
+          'status': 'To Do',
           'priority': 'Low',
           'assigned_to_id': 'demo-member-3',
         },
@@ -474,7 +477,7 @@ class DatabaseHelper {
           'title': 'Run Integration Tests',
           'description': 'Verify the main app features.',
           'deadline': deadline(5),
-          'status': 'Pending',
+          'status': 'To Do',
           'priority': 'High',
           'assigned_to_id': 'demo-member-4',
         },
@@ -483,11 +486,12 @@ class DatabaseHelper {
           'title': 'Prepare Final Presentation',
           'description': 'Organize the app demonstration.',
           'deadline': deadline(8),
-          'status': 'Pending',
+          'status': 'To Do',
           'priority': 'Medium',
           'assigned_to_id': 'demo-member-5',
         },
       ];
+
 
       for (final task in demoTasks) {
         await txn.insert(
@@ -496,6 +500,13 @@ class DatabaseHelper {
           conflictAlgorithm: ConflictAlgorithm.ignore,
         );
       }
+
+      await txn.update(
+        'tasks',
+        {'status': 'To Do'},
+        where: "id LIKE ? AND status = ?",
+        whereArgs: ['demo-task-%', 'Pending'],
+      );
     });
   }
 }
